@@ -135,6 +135,11 @@ class Track: AudioItem, TimePitching, AssetOptionsProviding {
                 options[AVURLAssetHTTPUserAgentKey] = userAgent
             }
         }
+        if #available(iOS 18, *) {
+            // 再生時間のズレを解消するため
+            // iOS 18以降はAVURLAssetPreferPreciseDurationAndTimingKeyをtrueに設定
+            options[AVURLAssetPreferPreciseDurationAndTimingKey] = true
+        }
         return options
     }
 
