@@ -462,3 +462,14 @@ export async function validateOnStartCommandIntent(): Promise<boolean> {
   if (!isAndroid) return true;
   return TrackPlayer.validateOnStartCommandIntent();
 }
+
+/**
+ * Audio Equalizer
+ */
+export async function setEqualizerEnabled(enabled: boolean): Promise<void> {
+  return TrackPlayer.setEqualizerEnabled(enabled);
+}
+
+export async function setEqualizerPreset(preset: string): Promise<void> {
+  return TrackPlayer.setEqualizerPreset(preset);
+}
