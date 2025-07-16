@@ -190,6 +190,15 @@ RCT_EXPORT_MODULE()
   return [NativeTrackPlayerImpl supportedEvents];
 }
 
+// Equalizer methods - Added for custom equalizer implementation
+- (void)setEqualizerEnabled:(BOOL)enabled resolve:(nonnull RCTPromiseResolveBlock)resolve reject:(nonnull RCTPromiseRejectBlock)reject {
+  [nativeTrackPlayer setEqualizerEnabled:enabled resolve:resolve reject:reject];
+}
+
+- (void)setEqualizerPreset:(NSString *)preset resolve:(nonnull RCTPromiseResolveBlock)resolve reject:(nonnull RCTPromiseRejectBlock)reject {
+  [nativeTrackPlayer setEqualizerPreset:preset resolve:resolve reject:reject];
+}
+
 /*****************************************
  * Android Only Methods (Stubs)
  *****************************************/
