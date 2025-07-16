@@ -674,6 +674,25 @@ public class NativeTrackPlayerImpl: NSObject, AudioSessionControllerDelegate {
         resolve(NSNull())
     }
 
+    @objc
+    public func setEqualizerEnabled(enabled: Bool, resolve: RCTPromiseResolveBlock, reject: RCTPromiseRejectBlock) {
+        if (rejectWhenNotInitialized(reject: reject)) { return }
+        
+        print("📱 RNTrackPlayer: setEqualizerEnabled called with: \(enabled)")
+        player.setEqualizerEnabled(enabled)
+        resolve(NSNull())
+    }
+    
+    @objc
+    public func setEqualizerPreset(preset: String, resolve: RCTPromiseResolveBlock, reject: RCTPromiseRejectBlock) {
+        if (rejectWhenNotInitialized(reject: reject)) { return }
+        
+        print("📱 RNTrackPlayer: setEqualizerPreset called with: \(preset)")
+        // Pass the preset string directly to the player
+        player.setEqualizerPreset(preset)
+        resolve(NSNull())
+    }
+
     private func getPlaybackStateErrorKeyValues() -> Dictionary<String, Any> {
         switch player.playbackError {
             case .failedToLoadKeyValue: return [
