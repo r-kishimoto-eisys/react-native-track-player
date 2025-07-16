@@ -100,8 +100,8 @@ export interface Spec extends TurboModule {
   abandonWakeLock(): Promise<void>;
   validateOnStartCommandIntent(): Promise<boolean>;
 
-  setEqualizerEnabled(enabled: boolean): void;
-  setEqualizerPreset(preset: string): void;
+  setEqualizerEnabled(enabled: boolean): Promise<void>;
+  setEqualizerPreset(preset: string): Promise<void>;
 }
 
 const module = TurboModuleRegistry.getEnforcing<Spec>('TrackPlayer');
