@@ -153,6 +153,14 @@ RCT_EXPORT_MODULE()
   [nativeTrackPlayer setupPlayer:options resolver:resolve rejecter:reject];
 }
 
+- (void)setEqualizerEnabled:(BOOL)enabled resolve:(nonnull RCTPromiseResolveBlock)resolve reject:(nonnull RCTPromiseRejectBlock)reject {
+  [nativeTrackPlayer setEqualizerEnabled:enabled resolver:resolve rejecter:reject];
+}
+
+- (void)setEqualizerPreset:(NSString *)preset resolve:(nonnull RCTPromiseResolveBlock)resolve reject:(nonnull RCTPromiseRejectBlock)reject {
+  [nativeTrackPlayer setEqualizerPreset:preset resolver:resolve rejecter:reject];
+}
+
 - (void)skip:(double)index initialPosition:(nonnull NSNumber *)initialPosition resolve:(nonnull RCTPromiseResolveBlock)resolve reject:(nonnull RCTPromiseRejectBlock)reject {
   [nativeTrackPlayer skipTo:index initialTime:initialPosition.doubleValue resolve:resolve reject:reject];
 }
@@ -188,15 +196,6 @@ RCT_EXPORT_MODULE()
 
 - (NSArray<NSString *> *)supportedEvents {
   return [NativeTrackPlayerImpl supportedEvents];
-}
-
-// Equalizer methods - Added for custom equalizer implementation
-- (void)setEqualizerEnabled:(BOOL)enabled resolve:(nonnull RCTPromiseResolveBlock)resolve reject:(nonnull RCTPromiseRejectBlock)reject {
-  [nativeTrackPlayer setEqualizerEnabled:enabled resolver:resolve rejecter:reject];
-}
-
-- (void)setEqualizerPreset:(NSString *)preset resolve:(nonnull RCTPromiseResolveBlock)resolve reject:(nonnull RCTPromiseRejectBlock)reject {
-  [nativeTrackPlayer setEqualizerPreset:preset resolver:resolve rejecter:reject];
 }
 
 /*****************************************
