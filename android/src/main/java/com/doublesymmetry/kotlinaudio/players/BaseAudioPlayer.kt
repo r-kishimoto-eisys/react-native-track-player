@@ -292,6 +292,54 @@ abstract class BaseAudioPlayer internal constructor(
         exoPlayer.seekTo(positionMs)
     }
 
+    open fun setEqualizerLevels(levels: ShortArray): Boolean {
+        var changed = false
+        if (levels.size != equalizer.numberOfBands.toInt()) {
+            throw Error("Invalid number of bands.")
+        }
+        for (i in 0 until equalizer.numberOfBands) {
+            val band = i.toShort()
+            val level = levels[i]
+            val currentLevel = equalizer.getBandLevel(band)
+            if (currentLevel != level) {
+                equalizer.setBandLevel(band, levels[i])
+                changed = true
+            }
+        }
+        if (changed) {
+            currentCustomPresetName = null  // Clear custom preset name when manually adjusting
+        }
+        equalizer.enabled = true
+        return changed
+    }
+
+    open fun getEqualizerPresets(): Array<String> {
+        val number = equalizer.numberOfPresets.toInt()
+        val systemPresets = Array<String>(number) {""}
+        for (i in 0 until number) {
+            systemPresets[i] = equalizer.getPresetName(i.toShort())
+        }
+
+        // Combine system presets with custom presets
+        val customPresetNames = customEQPresets.map { it.name }.toTypedArray()
+        return systemPresets + customPresetNames
+    }
+
+    open fun getCurrentEqualizerPresetName(): String? {
+        // First check if a custom preset is active
+        if (currentCustomPresetName != null) {
+            return currentCustomPresetName
+        }
+        
+        // Otherwise check system preset
+        val currentPreset = equalizer.currentPreset
+        if (currentPreset >= 0 && currentPreset < equalizer.numberOfPresets) {
+            return equalizer.getPresetName(currentPreset)
+        }
+        
+        return null  // No preset active (manual adjustment)
+    }
+
     open fun setEqualizerPreset(presetName: String): Boolean {
         // First check if it's a custom preset
         val customPreset = customEQPresets.find { it.name == presetName }
@@ -421,7 +469,7 @@ abstract class BaseAudioPlayer internal constructor(
             return false
         }
     }
-
+    
     @UnstableApi
     inner class InnerPlayerListener : Listener {
 
