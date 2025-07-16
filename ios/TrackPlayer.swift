@@ -674,7 +674,7 @@ public class NativeTrackPlayerImpl: NSObject, AudioSessionControllerDelegate {
         resolve(NSNull())
     }
 
-    @objc
+    @objc(setEqualizerEnabled:resolver:rejecter:)
     public func setEqualizerEnabled(enabled: Bool, resolve: RCTPromiseResolveBlock, reject: RCTPromiseRejectBlock) {
         if (rejectWhenNotInitialized(reject: reject)) { return }
         
@@ -683,7 +683,7 @@ public class NativeTrackPlayerImpl: NSObject, AudioSessionControllerDelegate {
         resolve(NSNull())
     }
     
-    @objc
+    @objc(setEqualizerPreset:resolver:rejecter:)
     public func setEqualizerPreset(preset: String, resolve: RCTPromiseResolveBlock, reject: RCTPromiseRejectBlock) {
         if (rejectWhenNotInitialized(reject: reject)) { return }
         
