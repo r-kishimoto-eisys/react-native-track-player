@@ -98,6 +98,7 @@ class MusicService : HeadlessJsMediaService() {
 
     @ExperimentalCoroutinesApi
     override fun onCreate() {
+        val uniqueSessionId = "MusicService_${System.currentTimeMillis()}_${android.os.Process.myPid()}"
         Timber.plant(object : Timber.DebugTree() {
             override fun createStackElementTag(element: StackTraceElement): String? {
                 return "RNTP-${element.className}:${element.methodName}"
@@ -113,6 +114,7 @@ class MusicService : HeadlessJsMediaService() {
         mediaSession = MediaLibrarySession.Builder(this, fakePlayer,
             InnerMediaSessionCallback()
         )
+            .setId(uniqueSessionId)
             .setBitmapLoader(CacheBitmapLoader(CoilBitmapLoader(this)))
             // https://github.com/androidx/media/issues/1218
             .setSessionActivity(
@@ -123,7 +125,9 @@ class MusicService : HeadlessJsMediaService() {
                     getPendingIntentFlags()
                 )
             )
-            .build()
+            .build().also {
+                Timber.d("MediaSession created with ID: $uniqueSessionId")
+            }
         super.onCreate()
     }
 
@@ -863,13 +867,27 @@ class MusicService : HeadlessJsMediaService() {
 
     @MainThread
     override fun onDestroy() {
+        Timber.d("MusicService onDestroy")
+        
         if (::player.isInitialized) {
             Timber.d("Releasing media session and destroying player")
-            mediaSession.release()
+            try {
+                mediaSession.release()
+                Timber.d("MediaSession released successfully")
+            } catch (e: Exception) {
+                Timber.e(e, "Error releasing MediaSession")
+            }
             player.destroy()
+        }
+        
+        try {
+            fakePlayer.release()
+        } catch (e: Exception) {
+            Timber.e(e, "Error releasing fakePlayer")
         }
 
         progressUpdateJob?.cancel()
+        abandonWakeLock()
         super.onDestroy()
     }
 
