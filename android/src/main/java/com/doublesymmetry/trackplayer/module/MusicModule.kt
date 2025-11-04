@@ -620,6 +620,28 @@ class MusicModule(reactContext: ReactApplicationContext) : NativeTrackPlayerSpec
         callback.resolve(musicService.onStartCommandIntentValid)
     }
 
+    override fun setEqualizerEnabled(enabled: Boolean, callback: Promise) = launchInScope {
+        if (verifyServiceBoundOrReject(callback)) return@launchInScope
+        
+        try {
+            musicService.setEqualizerEnabled(enabled)
+            callback.resolve(null)
+        } catch (e: Exception) {
+            rejectWithException(callback, e)
+        }
+    }
+    
+    override fun setEqualizerPreset(preset: String, callback: Promise) = launchInScope {
+        if (verifyServiceBoundOrReject(callback)) return@launchInScope
+        
+        try {
+            musicService.setEqualizerPreset(preset)
+            callback.resolve(null)
+        } catch (e: Exception) {
+            rejectWithException(callback, e)
+        }
+    }
+
     // Bridgeless interop layer tries to pass the `Job` from `scope.launch` to the JS side
     // which causes an exception. We can work around this using a wrapper.
     private fun launchInScope(block: suspend () -> Unit) {

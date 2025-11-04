@@ -2,6 +2,7 @@ package com.doublesymmetry.kotlinaudio.players
 
 import android.content.Context
 import android.media.AudioManager
+import android.media.audiofx.Equalizer
 import androidx.annotation.CallSuper
 import androidx.core.content.ContextCompat
 import androidx.media.AudioAttributesCompat
@@ -68,6 +69,15 @@ abstract class BaseAudioPlayer internal constructor(
 
     open val currentItem: AudioItem?
         get() = exoPlayer.currentMediaItem?.let { AudioItem.fromMediaItem(it) }
+
+    private var _equalizer: Equalizer? = null
+    open val equalizer: Equalizer
+        get() {
+            if (_equalizer == null) {
+                _equalizer = Equalizer(0, exoPlayer.audioSessionId)
+            }
+            return _equalizer!!
+        }
 
     var playbackError: PlaybackError? = null
     var playerState: AudioPlayerState = AudioPlayerState.IDLE
@@ -282,6 +292,184 @@ abstract class BaseAudioPlayer internal constructor(
         exoPlayer.seekTo(positionMs)
     }
 
+    open fun setEqualizerLevels(levels: ShortArray): Boolean {
+        var changed = false
+        if (levels.size != equalizer.numberOfBands.toInt()) {
+            throw Error("Invalid number of bands.")
+        }
+        for (i in 0 until equalizer.numberOfBands) {
+            val band = i.toShort()
+            val level = levels[i]
+            val currentLevel = equalizer.getBandLevel(band)
+            if (currentLevel != level) {
+                equalizer.setBandLevel(band, levels[i])
+                changed = true
+            }
+        }
+        if (changed) {
+            currentCustomPresetName = null  // Clear custom preset name when manually adjusting
+        }
+        equalizer.enabled = true
+        return changed
+    }
+
+    open fun getEqualizerPresets(): Array<String> {
+        val number = equalizer.numberOfPresets.toInt()
+        val systemPresets = Array<String>(number) {""}
+        for (i in 0 until number) {
+            systemPresets[i] = equalizer.getPresetName(i.toShort())
+        }
+
+        // Combine system presets with custom presets
+        val customPresetNames = customEQPresets.map { it.name }.toTypedArray()
+        return systemPresets + customPresetNames
+    }
+
+    open fun getCurrentEqualizerPresetName(): String? {
+        // First check if a custom preset is active
+        if (currentCustomPresetName != null) {
+            return currentCustomPresetName
+        }
+        
+        // Otherwise check system preset
+        val currentPreset = equalizer.currentPreset
+        if (currentPreset >= 0 && currentPreset < equalizer.numberOfPresets) {
+            return equalizer.getPresetName(currentPreset)
+        }
+        
+        return null  // No preset active (manual adjustment)
+    }
+
+    open fun setEqualizerPreset(presetName: String): Boolean {
+        // First check if it's a custom preset
+        val customPreset = customEQPresets.find { it.name == presetName }
+        if (customPreset != null) {
+            val result = applyCustomEQPreset(customPreset)
+            if (result) {
+                currentCustomPresetName = presetName
+            }
+            return result
+        }
+        
+        // Otherwise, check system presets
+        val currentPreset = equalizer.currentPreset
+        for (i in 0 until equalizer.numberOfPresets.toInt()) {
+            val currentPresetName = equalizer.getPresetName(i.toShort())
+            if (currentPresetName == presetName) {
+                val newPreset = i.toShort()
+                if (currentPreset != newPreset) {
+                    equalizer.usePreset(newPreset)
+                    currentCustomPresetName = null  // Clear custom preset name
+                    return true
+                }
+                break
+            }
+        }
+        return false
+    }
+
+    open fun setEqualizerEnabled(enabled: Boolean): Boolean {
+        val changed = enabled != equalizer.enabled
+        equalizer.enabled = enabled
+        return changed
+    }
+
+    open fun clearEqualizer() {
+        var equalizer = _equalizer ?: return
+        equalizer.release()
+        _equalizer = null
+    }
+
+    // Custom equalizer presets
+    private data class EQPresetValue(val frequency: Int, val gain: Float)
+    private data class EQPreset(val name: String, val values: List<EQPresetValue>)
+
+    // Track current custom preset name
+    private var currentCustomPresetName: String? = null
+    
+    private val customEQPresets = listOf(
+        EQPreset("soft", listOf(
+            EQPresetValue(500, 4.0f),
+            EQPresetValue(1000, -4.0f),
+            EQPresetValue(2000, -3.0f),
+            EQPresetValue(4000, 4.0f),
+            EQPresetValue(8000, -4.0f)
+        )),
+        EQPreset("relax", listOf(
+            EQPresetValue(500, 3.0f),
+            EQPresetValue(1000, -3.0f),
+            EQPresetValue(2000, -6.5f),
+            EQPresetValue(4000, -3.5f),
+            EQPresetValue(8000, 5.0f)
+        )),
+        EQPreset("balance", listOf(
+            EQPresetValue(500, 0.0f),
+            EQPresetValue(1000, -2.0f),
+            EQPresetValue(2000, 4.0f),
+            EQPresetValue(4000, -2.5f),
+            EQPresetValue(8000, -3.0f)
+        )),
+        EQPreset("whisper", listOf(
+            EQPresetValue(500, 4.0f),
+            EQPresetValue(1000, -6.5f),
+            EQPresetValue(2000, 3.5f),
+            EQPresetValue(4000, -4.0f),
+            EQPresetValue(8000, 4.0f)
+        )),
+        EQPreset("focus", listOf(
+            EQPresetValue(500, 8.0f),
+            EQPresetValue(1000, 0.0f),
+            EQPresetValue(2000, -12.0f),
+            EQPresetValue(4000, -11.0f),
+            EQPresetValue(8000, 8.0f)
+        )),
+        EQPreset("clear", listOf(
+            EQPresetValue(500, -5.0f),
+            EQPresetValue(1000, 5.0f),
+            EQPresetValue(2000, 0.0f),
+            EQPresetValue(4000, 2.0f),
+            EQPresetValue(8000, 8.0f)
+        ))
+    )
+
+    private fun applyCustomEQPreset(preset: EQPreset): Boolean {
+        try {
+            val numBands = equalizer.numberOfBands.toInt()
+            val minLevel = equalizer.bandLevelRange[0]
+            val maxLevel = equalizer.bandLevelRange[1]
+
+            // Map preset frequencies to equalizer bands
+            for (presetValue in preset.values) {
+                var closestBand: Short = -1
+                var closestDiff = Int.MAX_VALUE
+
+                // Find the closest band to the target frequency
+                for (band in 0 until numBands) {
+                    val centerFreq = equalizer.getCenterFreq(band.toShort()) / 1000 // Convert to Hz
+                    val diff = kotlin.math.abs(centerFreq - presetValue.frequency)
+                    if (diff < closestDiff) {
+                        closestDiff = diff
+                        closestBand = band.toShort()
+                    }
+                }
+
+                if (closestBand >= 0) {
+                    // Convert dB to millibels (1 dB = 100 millibels)
+                    val levelMillibels = (presetValue.gain * 100).toInt().toShort()
+                    // Clamp to valid range
+                    val clampedLevel = levelMillibels.coerceIn(minLevel, maxLevel)
+                    equalizer.setBandLevel(closestBand, clampedLevel)
+                }
+            }
+
+            equalizer.enabled = true
+            return true
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to apply custom EQ preset: ${preset.name}")
+            return false
+        }
+    }
+    
     @UnstableApi
     inner class InnerPlayerListener : Listener {
 

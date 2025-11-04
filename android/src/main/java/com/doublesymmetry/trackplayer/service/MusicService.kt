@@ -98,6 +98,7 @@ class MusicService : HeadlessJsMediaService() {
 
     @ExperimentalCoroutinesApi
     override fun onCreate() {
+        val uniqueSessionId = "MusicService_${System.currentTimeMillis()}_${android.os.Process.myPid()}"
         Timber.plant(object : Timber.DebugTree() {
             override fun createStackElementTag(element: StackTraceElement): String? {
                 return "RNTP-${element.className}:${element.methodName}"
@@ -113,6 +114,7 @@ class MusicService : HeadlessJsMediaService() {
         mediaSession = MediaLibrarySession.Builder(this, fakePlayer,
             InnerMediaSessionCallback()
         )
+            .setId(uniqueSessionId)
             .setBitmapLoader(CacheBitmapLoader(CoilBitmapLoader(this)))
             // https://github.com/androidx/media/issues/1218
             .setSessionActivity(
@@ -123,7 +125,9 @@ class MusicService : HeadlessJsMediaService() {
                     getPendingIntentFlags()
                 )
             )
-            .build()
+            .build().also {
+                Timber.d("MediaSession created with ID: $uniqueSessionId")
+            }
         super.onCreate()
     }
 
@@ -448,6 +452,58 @@ class MusicService : HeadlessJsMediaService() {
     @MainThread
     fun retry() {
         player.prepare()
+    }
+
+    private fun emitEqualizerChangedEvent() {
+        emit(MusicEvents.EQUALIZER_CHANGED, getEqualizerSettings())
+    }
+
+    @MainThread
+    fun getEqualizerSettings(): Bundle {
+        return Bundle().apply{
+            this.putIntArray(
+                "bandLevels",
+                player.equalizer.properties.bandLevels.map { it.toInt() }.toIntArray()
+            )
+            this.putInt("bandCount", player.equalizer.numberOfBands.toInt())
+            this.putStringArray("presets", player.getEqualizerPresets())
+            val bandCount = player.equalizer.numberOfBands.toInt()
+            var centerBandFrequencies = Array(bandCount) {0}
+            for (i in 0 until bandCount) {
+                centerBandFrequencies[i] = player.equalizer.getCenterFreq(i.toShort())
+            }
+            this.putIntArray("centerBandFrequencies", centerBandFrequencies.toIntArray())
+            this.putInt("lowerBandLevelLimit", player.equalizer.bandLevelRange[0].toInt())
+            this.putInt("upperBandLevelLimit", player.equalizer.bandLevelRange[1].toInt())
+            if (player.equalizer.properties.curPreset >= 0) {
+                this.putString(
+                    "activePreset",
+                    player.equalizer.getPresetName(player.equalizer.properties.curPreset)
+                )
+            }
+            this.putBoolean("enabled", player.equalizer.enabled)
+        }
+    }
+
+    @MainThread
+    fun setEqualizerEnabled(enabled: Boolean) {
+        if (player.setEqualizerEnabled(enabled)) {
+            emitEqualizerChangedEvent()
+        }
+    }
+
+    @MainThread
+    fun setEqualizerPreset(name: String) {
+        if (player.setEqualizerPreset(name)) {
+            emitEqualizerChangedEvent()
+        }
+    }
+
+    @MainThread
+    fun setEqualizerLevels(levels: ShortArray) {
+        if (player.setEqualizerLevels(levels)) {
+            emitEqualizerChangedEvent()
+        }
     }
 
     @MainThread
@@ -811,13 +867,27 @@ class MusicService : HeadlessJsMediaService() {
 
     @MainThread
     override fun onDestroy() {
+        Timber.d("MusicService onDestroy")
+        
         if (::player.isInitialized) {
             Timber.d("Releasing media session and destroying player")
-            mediaSession.release()
+            try {
+                mediaSession.release()
+                Timber.d("MediaSession released successfully")
+            } catch (e: Exception) {
+                Timber.e(e, "Error releasing MediaSession")
+            }
             player.destroy()
+        }
+        
+        try {
+            fakePlayer.release()
+        } catch (e: Exception) {
+            Timber.e(e, "Error releasing fakePlayer")
         }
 
         progressUpdateJob?.cancel()
+        abandonWakeLock()
         super.onDestroy()
     }
 

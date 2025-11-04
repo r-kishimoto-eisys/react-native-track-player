@@ -52,6 +52,9 @@ class MusicEvents(private val reactContext: ReactContext) : BroadcastReceiver() 
         const val METADATA_COMMON_RECEIVED = "metadata-common-received"
         const val METADATA_PAYLOAD_KEY = "metadata"
 
+        // Equalizer Events
+        const val EQUALIZER_CHANGED = "equalizer-changed"
+
         // Other
         const val PLAYER_ERROR = "player-error"
         const val CONNECTOR_CONNECTED = "android-controller-connected"
